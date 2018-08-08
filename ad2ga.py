@@ -5,6 +5,8 @@
 * TODO: could put in 3 lots of mark readings if want and if run.bat accepts this
 """
 
+from __future__ import print_function
+
 import os
 import datetime
 import re
@@ -58,16 +60,14 @@ def mean(numbers):
 
 # ======================================================================================================================
 parser = argparse.ArgumentParser(
-description='This is a PyMOTW sample program',
+description='Convert Autodif observations file to extract.bat/run.bat file',
 )
+parser.add_argument('in_fn', action="store", help='Autodif input file', type=str)
+parser.add_argument('-o', dest='out_fn', action="store", help='Output to this file', type=str)
 
-in_fn = '/nas/users/u43382/unix/autodif/20180807.abs'
+args = parser.parse_args()
 
-# pathname needs modifying based on date... leave like this for now
-# not used yet
-#out_fn = os.path.splitext(in_fn)[0]+'.obs'
-#print out_fn
-
+# ----------------------------------------------------------------------------------------------------------------------
 ad_toks = ['LaserPU', 'LaserPD', 'Decl1UE', 'Decl2DW', 'Decl3DE', 'Decl4UW', 'LaserPU', 'LaserPD', 'Incl1US', 'Incl2DN', 'Incl3DS', 'Incl4UN']
 ga_toks = ['mu',      'md',      'nu',      'nd',      'sd',      'su',      'mu',      'md',      'eu',      'ed',      'wd',      'wu'     ]
 
@@ -80,18 +80,13 @@ exec((', '.join(ad_toks_uniq))+' = range(len(ad_toks_uniq))')
 exec((', '.join(ga_toks_uniq))+' = range(len(ga_toks_uniq))')
 
 tok_map = dict(zip(ad_toks, ga_toks))             # token mapping. don't care about RecTime?
-#print tok_map
-#sys.exit()
 
 # use regex to get valid lines
 ad_tok_pat = '|'.join(tok_map.keys())         # autodif token pattern
-#print ad_tok_pat
 
 pat = r'((?P<ad_tok>{})\s+(?P<date>\d{{4}}-\d{{2}}-\d{{2}})\s+(?P<time>\d{{2}}:\d{{2}}:\d{{2}})\s+(?P<value>\d{{3}}\.\d*)\s*)'.format(ad_tok_pat)
-#pat = r'({})'.format(ad_tok_pat)
-#print(pat)
 
-with open(in_fn, 'r') as fp:
+with open(args.in_fn, 'r') as fp:
     in_str = fp.read()
 
 obs = []
@@ -112,8 +107,6 @@ for g_num, abs_ob in enumerate(window(obs, len(ad_toks))):
     if [x.ad_tok for x in abs_ob] == ad_toks:
         abs_obs.append(abs_ob)
         # could also put time constraints for an observation here...
-
-#pprint(abs_obs)
 
 # ======================================================================================================================
 # for each abs obs create a string
@@ -156,5 +149,13 @@ def get_abs_ob_str(abs_ob):
 
     return abs_ob_str
 
+if args.out_fn:
+    fp = open(args.out_fn, 'w')
+else:
+    fp = sys.stdout
+
 for abs_ob in abs_obs:
-    print(get_abs_ob_str(abs_ob))
+    print(get_abs_ob_str(abs_ob), file=fp)
+
+if args.out_fn:
+    fp.close()
