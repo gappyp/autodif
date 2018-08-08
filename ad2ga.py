@@ -115,13 +115,13 @@ def get_abs_ob_str(abs_ob):
     by_gau = AttrDict(zip(ga_toks_uniq, abs_ob))
 
     abs_ob_str =  'Begin Absolutes {date:} {time:} CNB #VAR#\n'.format(date=by_gau.mu1.dt.strftime('%Y/%m/%d'), time=by_gau.mu1.dt.strftime('%H:%M'))
-    abs_ob_str += 'Begin DIM {date:} CNB gsb N Cw AUTODIF007E AUTODIF007\n'.format(date=by_gau.mu1.dt.strftime('%Y/%m/%d'))
+    abs_ob_str += 'Begin DIM {date:} CNB gsb N Cw AUTODIF_007E AUTODIF_007\n'.format(date=by_gau.mu1.dt.strftime('%Y/%m/%d'))
     abs_ob_str += 'mu  {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.mu1.value)))
     abs_ob_str += 'md  {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.md1.value)))
     # declination obs
     for ob in abs_ob[Decl1UE:Decl4UW+1]:
         d, m, s = dd2dms(float(ob.value))
-        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}     ; T +000.0"\n'.format(ga_tok=ob.ga_tok, time=ob.time, d=d, m=m, s=s)
+        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}     ; T +000.0:\n'.format(ga_tok=ob.ga_tok, time=ob.time, d=d, m=m, s=s)
     # 2nd lot of mark readings
     abs_ob_str += 'mu  {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.mu2.value)))
     abs_ob_str += 'md  {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.md2.value)))
@@ -129,21 +129,23 @@ def get_abs_ob_str(abs_ob):
     # calculate hz1 and hz2. should be in the half of north?     # TODO: needs confirmation
     hz_calc_angs = [float(ob.value) for ob in abs_ob[Decl1UE:Decl4UW+1]]
     hz1 = mean([x%180.0 for x in hz_calc_angs])
+    #hz1 += 180.0
     if hz_calc_angs[0] <= 180:
         pass
     else:
         hz1 += 180.0        # to bring into the 2nd half
+    hz1 = (hz1+90.0)%360
     hz2 = (hz1+180.0)%360.0
 
     abs_ob_str += 'hz       {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(hz1))
     # inclination obs
     for ob in abs_ob[Incl1US:Incl2DN+1]:
         d, m, s = dd2dms(float(ob.value))
-        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}     ; T +000.0"\n'.format(ga_tok=ob.ga_tok, time=ob.time, d=d, m=m, s=s)
+        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}     ; T +000.0:\n'.format(ga_tok=ob.ga_tok, time=ob.time, d=d, m=m, s=s)
     abs_ob_str += 'hz       {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(hz2))
     for ob in abs_ob[Incl3DS:Incl4UN+1]:
         d, m, s = dd2dms(float(ob.value))
-        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}     ; T +000.0"\n'.format(ga_tok=ob.ga_tok, time=ob.time, d=d, m=m, s=s)
+        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}     ; T +000.0:\n'.format(ga_tok=ob.ga_tok, time=ob.time, d=d, m=m, s=s)
     abs_ob_str += 'End DIM\n'
     abs_ob_str += 'End Absolutes\n'
 
