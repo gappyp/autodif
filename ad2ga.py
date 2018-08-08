@@ -11,6 +11,7 @@ import re
 import sys
 from itertools import islice
 from pprint import pprint
+import argparse
 
 # ======================================================================================================================
 # TODO: these classes and function mainly from internet. need to double check
@@ -56,10 +57,15 @@ def mean(numbers):
     return float(sum(numbers)) / max(len(numbers), 1)
 
 # ======================================================================================================================
+parser = argparse.ArgumentParser(
+description='This is a PyMOTW sample program',
+)
+
 in_fn = '/nas/users/u43382/unix/autodif/20180807.abs'
 
 # pathname needs modifying based on date... leave like this for now
-out_fn = os.path.splitext(in_fn)[0]+'.obs'
+# not used yet
+#out_fn = os.path.splitext(in_fn)[0]+'.obs'
 #print out_fn
 
 ad_toks = ['LaserPU', 'LaserPD', 'Decl1UE', 'Decl2DW', 'Decl3DE', 'Decl4UW', 'LaserPU', 'LaserPD', 'Incl1US', 'Incl2DN', 'Incl3DS', 'Incl4UN']
