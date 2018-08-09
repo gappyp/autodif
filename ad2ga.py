@@ -121,7 +121,7 @@ def get_abs_ob_str(abs_ob):
     # declination obs
     for ob in abs_ob[Decl1UE:Decl4UW+1]:
         d, m, s = dd2dms(float(ob.value))
-        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}     ; T +000.0:\n'.format(ga_tok=ob.ga_tok, time=ob.time, d=d, m=m, s=s)
+        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}"     ; T +000.0:\n'.format(ga_tok=ob.ga_tok, time=ob.time, d=d, m=m, s=s)
     # 2nd lot of mark readings
     abs_ob_str += 'mu  {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.mu2.value)))
     abs_ob_str += 'md  {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.md2.value)))
@@ -141,11 +141,11 @@ def get_abs_ob_str(abs_ob):
     # inclination obs
     for ob in abs_ob[Incl1US:Incl2DN+1]:
         d, m, s = dd2dms(float(ob.value))
-        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}     ; T +000.0:\n'.format(ga_tok=ob.ga_tok, time=ob.time, d=d, m=m, s=s)
+        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}"     ; T +000.0:\n'.format(ga_tok=ob.ga_tok, time=ob.time, d=d, m=m, s=s)
     abs_ob_str += 'hz       {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(hz2))
     for ob in abs_ob[Incl3DS:Incl4UN+1]:
         d, m, s = dd2dms(float(ob.value))
-        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}     ; T +000.0:\n'.format(ga_tok=ob.ga_tok, time=ob.time, d=d, m=m, s=s)
+        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}"     ; T +000.0:\n'.format(ga_tok=ob.ga_tok, time=ob.time, d=d, m=m, s=s)
     abs_ob_str += 'End DIM\n'
     abs_ob_str += 'End Absolutes\n'
 

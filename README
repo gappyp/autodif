@@ -1,5 +1,26 @@
-Changes
-=======
+ad2ga.py: script to convert autodif absolute observations to ga .obs file
+=========================================================================
+* if you don't know what version to use, use the one with the latest version number
+    * don't use ad2ga.py as that is what I use to experiment with
+* i think everytime any of the script are saved from windows, it resets the unix permisions on the file
+    *
+
+usage
+-----
+geomagr@rhe-geomag-prod01.prod.lan:>$GMProj/u/autodif/ad2ga-0.9.1.py -h
+usage: ad2ga-0.9.1.py [-h] [-o OUT_FN] in_fn
+
+Convert Autodif observations file to extract.bat/run.bat file
+
+positional arguments:
+  in_fn       Autodif input file
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -o OUT_FN   Output to this file
+
+changes
+-------
 * 0.9
 	* first version
 * 0.9.1
