@@ -1,0 +1,8 @@
+Changes
+=======
+* 0.9
+	* first version
+* 0.9.1
+	* changed hz1 and hz2 calulation with input from AML, though still not 100% confirmed
+* 0.9.2
+	* fixed issue with " (second symbol) not being printed for declination and inclination readings
