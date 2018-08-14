@@ -13,7 +13,8 @@ import sys
 from itertools import islice
 from pprint import pprint
 import argparse
-from collections import OrderedDict
+
+from orderedattrdict import AttrDict as OrdAttrDict
 
 # ======================================================================================================================
 # TODO: these classes and function mainly from internet. need to double check
@@ -21,17 +22,6 @@ class AttrDict(dict):
     def __init__(self, *args, **kwargs):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
-
-"""
-class OrdAttrDict(OrderedDict):
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-"""
-
-x = AttrDict(OrderedDict([(6,'a'), (2, 'b'), (3, 'c')]))
-pprint(x)
-sys.exit()
 
 # ----------------------------------------------------------------------------------------------------------------------
 def dd2dms(dd):
