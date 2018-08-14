@@ -15,8 +15,14 @@ from pprint import pprint
 import argparse
 
 from orderedattrdict import AttrDict as OrdAttrDict
-from attrdict import AttrDict
+#from attrdict import AttrDict
 from collections import defaultdict
+
+# the borrowed AttrDict is shit
+class AttrDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
 
 # ======================================================================================================================
 # TODO: these mainly from internet. need to double check
@@ -64,15 +70,15 @@ parser.add_argument('--np', action="store_true", default=False, help='don\'t inc
 parser.add_argument('--mro', action="store_true", default=False, help='only include obs that have mark readings')
 
 # if first obs doesn't have mark reading, supply them here
-parser.add_argument('--mu', action="store", type=str, help='will set the first missing mu reading to this (decimal degrees or dd,mm,ss.ss)')
-parser.add_argument('--md', action="store", type=str, help='will set the first missing md reading to this (decimal degrees or dd,mm,ss.ss)')
+# TODO: make it so requires both :S???
+parser.add_argument('--mud', action="store", type=str, help='force the first missing mark up and down readings')
 
 args = parser.parse_args()
 
 # TODO: TESTING... get rid of this eventually
-args.mu = 180.0
-args.md = 0.0
-
+# TODO: if 2nd angle not specified, do a 180 shift
+args.mud = (180.0, 0.0)
+args.mud = None
 
 #print(args)
 #sys.exit()
@@ -133,12 +139,12 @@ for ob in window(obs, len(ad_toks)):
     if [x.ad_tok for x in ob] == ad_toks:
         by_adu = OrdAttrDict(zip(ad_toks_uniq, ob))
         by_gau = OrdAttrDict(zip(ga_toks_uniq, ob))
-        wmr_obs.append(AttrDict({'comment':'# source: {}:{}:{}'.format(ob[0].fn, ob[0].ln, ob[-1].ln),
+        wmr_obs.append(AttrDict({'comment':'# source: {}:{}:{}\n'.format(ob[0].fn, ob[0].ln, ob[-1].ln),
                                  'dt':by_adu.LaserPU1.dt,
                                  'by_adu':by_adu,
                                  'by_gau':by_gau}))
 # sort by first mu datetime, just incase
-wmr_obs = sorted(wmr_obs, key=lambda abs_ob: abs_ob.by_gau.mu1.dt)       # TODO: untested
+wmr_obs.sort(key=lambda abs_ob: abs_ob.by_gau.mu1.dt)       # TODO: untested
 
 # **********************************************************************************************************************
 # TODO: this is really gross, needs changing
@@ -164,27 +170,44 @@ for ob in window(obs, len(nmr_ad_toks)):
     if [x.ad_tok for x in ob] == nmr_ad_toks:
         by_adu = OrdAttrDict(zip(nmr_ad_toks, ob))
         by_gau = OrdAttrDict(zip(nmr_ga_toks, ob))
-        nmr_obs.append(AttrDict({'comment':'# source: {}:{}:{}'.format(ob[0].fn, ob[0].ln, ob[-1].ln),
+        nmr_obs.append(AttrDict({'comment':'# source: {}:{}:{}\n'.format(ob[0].fn, ob[0].ln, ob[-1].ln),
+                                 'dt':by_gau.nu.dt,
                                  'by_adu':by_adu,
                                  'by_gau':by_gau}))
 # sort by Decl1UE datetime, just incase
 #nmr_obs = sorted(nmr_obs, key=lambda abs_ob: abs_ob.by_gau.mu1.dt)               # this won't work because doesn't have that :D... that is good
-nmr_obs = sorted(nmr_obs, key=lambda abs_ob: abs_ob.by_gau.nu.dt)               # this won't work because doesn't have that :D... that is good
+nmr_obs.sort(key=lambda abs_ob: abs_ob.by_gau.nu.dt)               # this won't work because doesn't have that :D... that is good
 
 # ----------------------------------------------------------------------------------------------------------------------
 if args.mro:
     abs_obs = wmr_obs       # easy
 else:
     # can make complicated here, for now just use last mark-reading
-    if args.mu:
-        nmr_obs[0].by_gau.mu1 = AttrDict(('value', args.mu))
-        nmr_obs[0].by_adu.LaserPU1 = nmr_obs[0].by_gau.mu1
-    if args.md:
-        nmr_obs[0].by_gau.md1 = AttrDict(('value', args.md))
-        nmr_obs[0].by_adu.LaserPD1 = nmr_obs[0].by_gau.md1
+    if args.mud != None:
+        mu, md = args.mud
+        nmr_obs[0].by_gau.mu1 = nmr_obs[0].by_adu.LaserPU1 = AttrDict([('value', mu), ('dt', nmr_obs[0].by_gau.nu.dt)])
+        nmr_obs[0].by_gau.mu2 = nmr_obs[0].by_adu.LaserPU1 = AttrDict([('value', mu), ('dt', nmr_obs[0].by_gau.nu.dt)])
+        nmr_obs[0].by_gau.md1 = nmr_obs[0].by_adu.LaserPD2 = AttrDict([('value', md), ('dt', nmr_obs[0].by_gau.eu.dt)])
+        nmr_obs[0].by_gau.md2 = nmr_obs[0].by_adu.LaserPD2 = AttrDict([('value', md), ('dt', nmr_obs[0].by_gau.eu.dt)])
+        # first has now been set if given at command line
+        # merge into wmr obs
+        forced_obs = nmr_obs.pop(0)
+        forced_obs.comment += '# mu: forced\n# md: forced\n'
+        wmr_obs.append(forced_obs)
+        wmr_obs.sort(key=lambda abs_ob: abs_ob.by_gau.mu1.dt)
 
-# group obs to get a list of ga 'Begin Absolute'
-#abs_obs = []
+    # for each no-mark-reading obs, determine from those with mark readings
+    for nmr_ob in nmr_obs:
+        # get observations with less than times
+        pot_obs = [abs_ob for abs_ob in wmr_obs if abs_ob.by_gau.mu2.dt <= nmr_ob.dt]
+        pot_obs.sort(key=lambda abs_ob: abs_ob.by_gau.mu2.dt)
+        nmr_ob.by_gau.mu1 = nmr_ob.by_gau.mu2 = pot_obs[-1].by_gau.mu2
+        nmr_ob.by_gau.md1 = nmr_ob.by_gau.md2 = pot_obs[-1].by_gau.md2
+        nmr_ob.comment += '# mu: {}:{}\n# md: {}:{}\n'.format(pot_obs[-1].by_gau.mu2.fn, pot_obs[-1].by_gau.mu2.ln,
+                                                              pot_obs[-1].by_gau.md2.fn, pot_obs[-1].by_gau.md2.ln)
+
+    abs_obs = wmr_obs+nmr_obs
+    abs_obs.sort(key=lambda abs_ob: abs_ob.dt)
 
 # ======================================================================================================================
 # TODO: think creates a new string each time '+='... confirm this and if the case maybe '\n'.join(append-to-a-list)
@@ -193,7 +216,8 @@ def get_abs_ob_str(abs_ob):
     by_adu = abs_ob.by_adu
     by_gau = abs_ob.by_gau
 
-    abs_ob_str =  'Begin Absolutes {date:} {time:} CNB #VAR#\n'.format(date=abs_ob.dt.strftime('%Y/%m/%d'), time=abs_ob.dt.strftime('%H:%M:%S'))
+    abs_ob_str  = str(abs_ob.comment)
+    abs_ob_str += 'Begin Absolutes {date:} {time:} CNB #VAR#\n'.format(date=abs_ob.dt.strftime('%Y/%m/%d'), time=abs_ob.dt.strftime('%H:%M:%S'))
     abs_ob_str += 'Begin DIM {date:} CNB rmi N Cw AUTODIF_007E AUTODIF_007\n'.format(date=by_gau.mu1.dt.strftime('%Y/%m/%d'))
     abs_ob_str += 'mu'+' '*10+'{:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.mu1.value)))
     abs_ob_str += 'md'+' '*10+'{:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.md1.value)))
