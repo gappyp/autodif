@@ -27,3 +27,13 @@ changes
 	* changed hz1 and hz2 calulation with input from AML, though still not 100% confirmed
 * 0.9.2
 	* fixed issue with " (second symbol) not being printed for declination and inclination readings
+* 0.9.3
+    * add second information to 'begin abs' (currently only to the minute)
+    * make the angle readings line up (mark and hz readings need to be shifted to right to align with other readings)
+    * add in support for unsuccessful mark readings
+        * previous versions only used obs that had 'RECTIME {date} {time} COMPLETE' (successful mark reading)
+        * 'RecTime {} {} MAGNETIC' (unsuccessful mark reading) observations will use the last successul mark reading
+            * will notify to stderr
+            * will be commented in ga .obs output
+    * observer name changed to gsb to rmi (royal met. inst.)
+    * pull in 1 one minute of PPM data (pier F)

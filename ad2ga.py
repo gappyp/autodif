@@ -1,8 +1,7 @@
 #!/usr/bin/env python2.7
 
 """
-* TODO: if obs goes over UT day need to do the 24:xx:xx thing
-* TODO: could put in 3 lots of mark readings if want and if run.bat accepts this
+* TODO: AML need needs to confirm mapping and hz calculation
 """
 
 from __future__ import print_function
@@ -14,14 +13,25 @@ import sys
 from itertools import islice
 from pprint import pprint
 import argparse
+from collections import OrderedDict
 
 # ======================================================================================================================
 # TODO: these classes and function mainly from internet. need to double check
-
 class AttrDict(dict):
     def __init__(self, *args, **kwargs):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
+
+"""
+class OrdAttrDict(OrderedDict):
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+"""
+
+x = AttrDict(OrderedDict([(6,'a'), (2, 'b'), (3, 'c')]))
+pprint(x)
+sys.exit()
 
 # ----------------------------------------------------------------------------------------------------------------------
 def dd2dms(dd):
@@ -59,56 +69,104 @@ def mean(numbers):
     return float(sum(numbers)) / max(len(numbers), 1)
 
 # ======================================================================================================================
-parser = argparse.ArgumentParser(
-description='Convert Autodif observations file to extract.bat/run.bat file',
-)
-parser.add_argument('in_fn', action="store", help='Autodif input file', type=str)
-parser.add_argument('-o', dest='out_fn', action="store", help='Output to this file', type=str)
+parser = argparse.ArgumentParser(description='convert Autodif observations file to extract.bat/run.bat file')
+
+parser.add_argument('in_fn', action="store", help='autodif input file', type=str)
+parser.add_argument('-o', dest='out_fn', action="store", help='output to this file (won\'t print to stdout)', type=str)
+
+parser.add_argument('--np', action="store_true", default=False, help='don\'t include PPM readings')
+parser.add_argument('--mro', action="store_true", default=False, help='only include obs that have mark readings')
+
+# if first obs doesn't have mark reading, supply them here
+parser.add_argument('--mu', action="store", type=str, help='will set the first missing mu reading to this (decimal degrees or dd,mm,ss.ss)')
+parser.add_argument('--md', action="store", type=str, help='will set the first missing md reading to this (decimal degrees or dd,mm,ss.ss)')
 
 args = parser.parse_args()
 
-# ----------------------------------------------------------------------------------------------------------------------
-ad_toks = ['LaserPU', 'LaserPD', 'Decl1UE', 'Decl2DW', 'Decl3DE', 'Decl4UW', 'LaserPU', 'LaserPD', 'Incl1US', 'Incl2DN', 'Incl3DS', 'Incl4UN']
-ga_toks = ['mu',      'md',      'nu',      'nd',      'sd',      'su',      'mu',      'md',      'eu',      'ed',      'wd',      'wu'     ]
+#print(args)
+#sys.exit()
 
-# below changed strings for lasers, so that unique
-ad_toks_uniq = ['LaserPU1', 'LaserPD1', 'Decl1UE', 'Decl2DW', 'Decl3DE', 'Decl4UW', 'LaserPU2', 'LaserPD2', 'Incl1US', 'Incl2DN', 'Incl3DS', 'Incl4UN']
-ga_toks_uniq = ['mu1',      'md1',      'nu',      'nd',      'sd',      'su',      'mu2',      'md2',      'eu',      'ed',      'wd',      'wu'     ]
+# ----------------------------------------------------------------------------------------------------------------------
+ad_toks =      ['RecTime', 'LaserPU',  'LaserPD',  'Decl1UE', 'Decl2DW', 'Decl3DE', 'Decl4UW', 'LaserPU',  'LaserPD',  'Incl1US', 'Incl2DN', 'Incl3DS', 'Incl4UN']
+ga_toks =      [None,      'mu',       'md',       'nu',      'nd',      'sd',      'su',      'mu',       'md',       'eu',      'ed',      'wd',      'wu'     ]
+ad_toks_uniq = ['RecTime', 'LaserPU1', 'LaserPD1', 'Decl1UE', 'Decl2DW', 'Decl3DE', 'Decl4UW', 'LaserPU2', 'LaserPD2', 'Incl1US', 'Incl2DN', 'Incl3DS', 'Incl4UN']      # these are the same except for unique mark readings
+ga_toks_uniq = [None,      'mu1',      'md1',      'nu',      'nd',      'sd',      'su',      'mu2',      'md2',      'eu',      'ed',      'wd',      'wu'     ]
 
 # even more stuff for indexing
 exec((', '.join(ad_toks_uniq))+' = range(len(ad_toks_uniq))')
-exec((', '.join(ga_toks_uniq))+' = range(len(ga_toks_uniq))')
+ga_toks_uniq_nn = list(ga_toks_uniq); ga_toks_uniq_nn.remove(None)
+exec((', '.join(ga_toks_uniq_nn))+' = range(1, len(ga_toks_uniq_nn)+1)')
 
-tok_map = dict(zip(ad_toks, ga_toks))             # token mapping. don't care about RecTime?
+tok_map = dict(zip(ad_toks, ga_toks))
 
-# use regex to get valid lines
-ad_tok_pat = '|'.join(tok_map.keys())         # autodif token pattern
-
-pat = r'((?P<ad_tok>{})\s+(?P<date>\d{{4}}-\d{{2}}-\d{{2}})\s+(?P<time>\d{{2}}:\d{{2}}:\d{{2}})\s+(?P<value>\d{{3}}\.\d*)\s*)'.format(ad_tok_pat)
-
-with open(args.in_fn, 'r') as fp:
-    in_str = fp.read()
+# use regex to get valid lines and extract data
+p0 = '|'.join(key for key in tok_map.keys() if key != 'RecTime')
+p1 = r'((?P<ad_tok>{})\s+(?P<date>\d{{4}}-\d{{2}}-\d{{2}})\s+(?P<time>\d{{2}}:\d{{2}}:\d{{2}})\s+(?P<value>\d{{3}}\.\d*)\s*)'.format(p0)
+p2 = r'((?P<ad_tok>{})\s+(?P<date>\d{{4}}-\d{{2}}-\d{{2}})\s+(?P<time>\d{{2}}:\d{{2}}:\d{{2}})\s+(?P<value>(COMPLETE|MAGNETIC))\s*)'.format('RecTime')
 
 obs = []
-matches = re.finditer(pat, in_str)
-for match in matches:
-    ob = AttrDict(match.groupdict())
-    ob.ga_tok = tok_map[ob.ad_tok]
-    ob.dt = datetime.datetime.strptime(ob.date+'T'+ob.time, "%Y-%m-%dT%H:%M:%S")
+with open(args.in_fn, 'r') as fp:
+    for ln, line in enumerate(fp):
+        m_p1 = re.search(p1, line)
+        if m_p1:
+            ob = AttrDict(m_p1.groupdict())
+            ob.value = float(ob.value)
+        else:
+            m_p2 = re.search(p2, line)
+            if m_p2:
+                ob = AttrDict(m_p2.groupdict())
+                #if ob.value == 'MAGNETIC':
+                #    ob.value = None                 # TODO: might be more readable to leave this as MAGNETIC
+            else:
+                continue
+        ob.ga_tok = tok_map[ob.ad_tok]
+        ob.dt = datetime.datetime.strptime(ob.date+'T'+ob.time, "%Y-%m-%dT%H:%M:%S")
+        ob.fn = args.in_fn      # TODO: so frustrating not having pathlib... this will need to use cwd when relative path
+        ob.ln = ln
+        obs.append(ob)
 
-    obs.append(ob)
+# TODO: this won't be true now that include rectime token. need to split the list and assert order
+#assert obs == sorted(obs, key=lambda ob: ob.dt)
 
-# assert in time order          # TODO: unchecked
-assert obs == sorted(obs, key=lambda ob: ob.dt)
+# ----------------------------------------------------------------------------------------------------------------------
+wmr_obs = []        # with mark reading
+for ob in window(obs, len(ad_toks)):
+    if [x.ad_tok for x in ob] == ad_toks:
+
+        wmr_obs.append(AttrDict({'comment':'# source: {}:{}:{}'.format(ob[0].fn, ob[0].ln, ob[-1].ln), 'ob':ob}))       # TODO: maybe put line numbers in source file
+# sort by first mu datetime, just incase
+wmr_obs = sorted(wmr_obs, key=lambda abs_ob: abs_ob.ob[LaserPU1].dt)       # TODO: untested
+
+sys.exit()
+
+# **********************************************************************************************************************
+nmr_toks = ['RecTime', 'Decl1UE', 'Decl2DW', 'Decl3DE', 'Decl4UW', 'Incl1US', 'Incl2DN', 'Incl3DS', 'Incl4UN']
+nmr_obs = []        # no mark reading
+for ob in window(obs, len(nmr_toks)):
+    if [x.ad_tok for x in ob] == nmr_toks:
+        nmr_obs.append(ob)
+# sort by Decl1UE datetime, just incase
+wmr_obs = sorted(wmr_obs, key=lambda abs_ob: abs_ob.ob[1].dt)               # TODO: untested
+
+# ----------------------------------------------------------------------------------------------------------------------
+if args.mro:
+    abs_obs = wmr_obs       # easy
+else:
+    # can make complicated here, for now just use last mark-reading
+    if args.mu:
+        pass
+
+for obs in abs_obs:
+    pprint(obs)
+    print('-'*80)
+
+sys.exit()
 
 # group obs to get a list of ga 'Begin Absolute'
-abs_obs = []
-for g_num, abs_ob in enumerate(window(obs, len(ad_toks))):
-    if [x.ad_tok for x in abs_ob] == ad_toks:
-        abs_obs.append(abs_ob)
-        # could also put time constraints for an observation here...
+#abs_obs = []
 
 # ======================================================================================================================
+# TODO: think creates a new string each time '+='... confirm this and if the case maybe '\n'.join(append-to-a-list)
 # for each abs obs create a string
 def get_abs_ob_str(abs_ob):
     by_adu = AttrDict(zip(ad_toks_uniq, abs_ob))
@@ -151,6 +209,7 @@ def get_abs_ob_str(abs_ob):
 
     return abs_ob_str
 
+# ======================================================================================================================
 if args.out_fn:
     fp = open(args.out_fn, 'w')
 else:
