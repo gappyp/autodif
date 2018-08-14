@@ -15,15 +15,11 @@ from pprint import pprint
 import argparse
 
 from orderedattrdict import AttrDict as OrdAttrDict
+from attrdict import AttrDict
+from collections import defaultdict
 
 # ======================================================================================================================
-# TODO: these classes and function mainly from internet. need to double check
-class AttrDict(dict):
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-
-# ----------------------------------------------------------------------------------------------------------------------
+# TODO: these mainly from internet. need to double check
 def dd2dms(dd):
    is_positive = dd >= 0
    dd = abs(dd)
@@ -73,19 +69,32 @@ parser.add_argument('--md', action="store", type=str, help='will set the first m
 
 args = parser.parse_args()
 
+# TODO: TESTING... get rid of this eventually
+args.mu = 180.0
+args.md = 0.0
+
+
 #print(args)
 #sys.exit()
 
 # ----------------------------------------------------------------------------------------------------------------------
 ad_toks =      ['RecTime', 'LaserPU',  'LaserPD',  'Decl1UE', 'Decl2DW', 'Decl3DE', 'Decl4UW', 'LaserPU',  'LaserPD',  'Incl1US', 'Incl2DN', 'Incl3DS', 'Incl4UN']
 ga_toks =      [None,      'mu',       'md',       'nu',      'nd',      'sd',      'su',      'mu',       'md',       'eu',      'ed',      'wd',      'wu'     ]
-ad_toks_uniq = ['RecTime', 'LaserPU1', 'LaserPD1', 'Decl1UE', 'Decl2DW', 'Decl3DE', 'Decl4UW', 'LaserPU2', 'LaserPD2', 'Incl1US', 'Incl2DN', 'Incl3DS', 'Incl4UN']      # these are the same except for unique mark readings
-ga_toks_uniq = [None,      'mu1',      'md1',      'nu',      'nd',      'sd',      'su',      'mu2',      'md2',      'eu',      'ed',      'wd',      'wu'     ]
 
-# even more stuff for indexing
-exec((', '.join(ad_toks_uniq))+' = range(len(ad_toks_uniq))')
-ga_toks_uniq_nn = list(ga_toks_uniq); ga_toks_uniq_nn.remove(None)
-exec((', '.join(ga_toks_uniq_nn))+' = range(1, len(ga_toks_uniq_nn)+1)')
+for ref in ['ad_toks', 'ga_toks']:
+    exec('toks = {}'.format(ref))
+    occs = defaultdict(int)        # occurences
+    for tok in toks:
+        occs[tok] += 1
+    suff_cntr = {tok:1 for tok, occ in occs.items() if occ > 1}     # suffix counter
+    suff_toks = []
+    for tok in toks:
+        if tok in suff_cntr:
+            suff_toks.append(tok+str(suff_cntr[tok]))
+            suff_cntr[tok] += 1
+        else:
+            suff_toks.append(tok)
+    exec('{}_uniq = suff_toks'.format(ref))
 
 tok_map = dict(zip(ad_toks, ga_toks))
 
@@ -122,21 +131,45 @@ with open(args.in_fn, 'r') as fp:
 wmr_obs = []        # with mark reading
 for ob in window(obs, len(ad_toks)):
     if [x.ad_tok for x in ob] == ad_toks:
-
-        wmr_obs.append(AttrDict({'comment':'# source: {}:{}:{}'.format(ob[0].fn, ob[0].ln, ob[-1].ln), 'ob':ob}))       # TODO: maybe put line numbers in source file
+        by_adu = OrdAttrDict(zip(ad_toks_uniq, ob))
+        by_gau = OrdAttrDict(zip(ga_toks_uniq, ob))
+        wmr_obs.append(AttrDict({'comment':'# source: {}:{}:{}'.format(ob[0].fn, ob[0].ln, ob[-1].ln),
+                                 'dt':by_adu.LaserPU1.dt,
+                                 'by_adu':by_adu,
+                                 'by_gau':by_gau}))
 # sort by first mu datetime, just incase
-wmr_obs = sorted(wmr_obs, key=lambda abs_ob: abs_ob.ob[LaserPU1].dt)       # TODO: untested
-
-sys.exit()
+wmr_obs = sorted(wmr_obs, key=lambda abs_ob: abs_ob.by_gau.mu1.dt)       # TODO: untested
 
 # **********************************************************************************************************************
-nmr_toks = ['RecTime', 'Decl1UE', 'Decl2DW', 'Decl3DE', 'Decl4UW', 'Incl1US', 'Incl2DN', 'Incl3DS', 'Incl4UN']
+# TODO: this is really gross, needs changing
+# TODO: also has hardcoded mu and md in... won't work if change mapping (though this won't happen)
+def ga_tok_select(tok):
+    if tok is None:
+        return True
+    elif 'mu' in tok:
+        return False
+    elif 'md' in tok:
+        return False
+    else:
+        return True
+nmr_ad_toks      = [tok for tok in ad_toks      if 'Laser' not in tok]
+#nmr_ad_toks_uniq = [tok for tok in ad_toks_uniq if 'Laser' not in tok]
+nmr_ga_toks      = [tok for tok in ga_toks      if ga_tok_select(tok)]
+#nmr_ga_toks_uniq = [tok for tok in ga_toks_uniq if ga_tok_select(tok)]
+# nmr_... and nmr_..._uniq should be the same. wat the hell am i doing :S
+assert len(nmr_ad_toks) == len(nmr_ga_toks)
+
 nmr_obs = []        # no mark reading
-for ob in window(obs, len(nmr_toks)):
-    if [x.ad_tok for x in ob] == nmr_toks:
-        nmr_obs.append(ob)
+for ob in window(obs, len(nmr_ad_toks)):
+    if [x.ad_tok for x in ob] == nmr_ad_toks:
+        by_adu = OrdAttrDict(zip(nmr_ad_toks, ob))
+        by_gau = OrdAttrDict(zip(nmr_ga_toks, ob))
+        nmr_obs.append(AttrDict({'comment':'# source: {}:{}:{}'.format(ob[0].fn, ob[0].ln, ob[-1].ln),
+                                 'by_adu':by_adu,
+                                 'by_gau':by_gau}))
 # sort by Decl1UE datetime, just incase
-wmr_obs = sorted(wmr_obs, key=lambda abs_ob: abs_ob.ob[1].dt)               # TODO: untested
+#nmr_obs = sorted(nmr_obs, key=lambda abs_ob: abs_ob.by_gau.mu1.dt)               # this won't work because doesn't have that :D... that is good
+nmr_obs = sorted(nmr_obs, key=lambda abs_ob: abs_ob.by_gau.nu.dt)               # this won't work because doesn't have that :D... that is good
 
 # ----------------------------------------------------------------------------------------------------------------------
 if args.mro:
@@ -144,13 +177,11 @@ if args.mro:
 else:
     # can make complicated here, for now just use last mark-reading
     if args.mu:
-        pass
-
-for obs in abs_obs:
-    pprint(obs)
-    print('-'*80)
-
-sys.exit()
+        nmr_obs[0].by_gau.mu1 = AttrDict(('value', args.mu))
+        nmr_obs[0].by_adu.LaserPU1 = nmr_obs[0].by_gau.mu1
+    if args.md:
+        nmr_obs[0].by_gau.md1 = AttrDict(('value', args.md))
+        nmr_obs[0].by_adu.LaserPD1 = nmr_obs[0].by_gau.md1
 
 # group obs to get a list of ga 'Begin Absolute'
 #abs_obs = []
@@ -159,23 +190,23 @@ sys.exit()
 # TODO: think creates a new string each time '+='... confirm this and if the case maybe '\n'.join(append-to-a-list)
 # for each abs obs create a string
 def get_abs_ob_str(abs_ob):
-    by_adu = AttrDict(zip(ad_toks_uniq, abs_ob))
-    by_gau = AttrDict(zip(ga_toks_uniq, abs_ob))
+    by_adu = abs_ob.by_adu
+    by_gau = abs_ob.by_gau
 
-    abs_ob_str =  'Begin Absolutes {date:} {time:} CNB #VAR#\n'.format(date=by_gau.mu1.dt.strftime('%Y/%m/%d'), time=by_gau.mu1.dt.strftime('%H:%M'))
-    abs_ob_str += 'Begin DIM {date:} CNB gsb N Cw AUTODIF_007E AUTODIF_007\n'.format(date=by_gau.mu1.dt.strftime('%Y/%m/%d'))
-    abs_ob_str += 'mu  {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.mu1.value)))
-    abs_ob_str += 'md  {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.md1.value)))
+    abs_ob_str =  'Begin Absolutes {date:} {time:} CNB #VAR#\n'.format(date=abs_ob.dt.strftime('%Y/%m/%d'), time=abs_ob.dt.strftime('%H:%M:%S'))
+    abs_ob_str += 'Begin DIM {date:} CNB rmi N Cw AUTODIF_007E AUTODIF_007\n'.format(date=by_gau.mu1.dt.strftime('%Y/%m/%d'))
+    abs_ob_str += 'mu'+' '*10+'{:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.mu1.value)))
+    abs_ob_str += 'md'+' '*10+'{:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.md1.value)))
     # declination obs
-    for ob in abs_ob[Decl1UE:Decl4UW+1]:
-        d, m, s = dd2dms(float(ob.value))
-        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}"     ; T +000.0:\n'.format(ga_tok=ob.ga_tok, time=ob.time, d=d, m=m, s=s)
+    for ob in ['nu', 'nd', 'sd', 'su']:
+        d, m, s = dd2dms(float(by_gau[ob].value))
+        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}"     ; T +000.0:\n'.format(ga_tok=ob, time=by_gau[ob].time, d=d, m=m, s=s)
     # 2nd lot of mark readings
-    abs_ob_str += 'mu  {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.mu2.value)))
-    abs_ob_str += 'md  {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.md2.value)))
+    abs_ob_str += 'mu'+' '*10+'{:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.mu2.value)))
+    abs_ob_str += 'md'+' '*10+'{:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(float(by_gau.md2.value)))
 
     # calculate hz1 and hz2. should be in the half of north?     # TODO: needs confirmation
-    hz_calc_angs = [float(ob.value) for ob in abs_ob[Decl1UE:Decl4UW+1]]
+    hz_calc_angs = [float(by_adu[ob].value) for ob in ['Decl1UE', 'Decl4UW']]
     hz1 = mean([x%180.0 for x in hz_calc_angs])
     #hz1 += 180.0
     if hz_calc_angs[0] <= 180:
@@ -185,15 +216,15 @@ def get_abs_ob_str(abs_ob):
     hz1 = (hz1+90.0)%360
     hz2 = (hz1+180.0)%360.0
 
-    abs_ob_str += 'hz       {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(hz1))
+    abs_ob_str += 'hz          {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(hz1))
     # inclination obs
-    for ob in abs_ob[Incl1US:Incl2DN+1]:
-        d, m, s = dd2dms(float(ob.value))
-        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}"     ; T +000.0:\n'.format(ga_tok=ob.ga_tok, time=ob.time, d=d, m=m, s=s)
-    abs_ob_str += 'hz       {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(hz2))
-    for ob in abs_ob[Incl3DS:Incl4UN+1]:
-        d, m, s = dd2dms(float(ob.value))
-        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}"     ; T +000.0:\n'.format(ga_tok=ob.ga_tok, time=ob.time, d=d, m=m, s=s)
+    for ob in ['eu', 'ed']:
+        d, m, s = dd2dms(float(by_gau[ob].value))
+        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}"     ; T +000.0:\n'.format(ga_tok=ob, time=by_gau[ob].time, d=d, m=m, s=s)
+    abs_ob_str += 'hz          {:03.0f} {:02.0f}\'{:02.0f}"\n'.format(*dd2dms(hz2))
+    for ob in ['wd', 'wu']:
+        d, m, s = dd2dms(float(by_gau[ob].value))
+        abs_ob_str += '{ga_tok:} {time:} {d:03.0f} {m:02.0f}\'{s:02.0f}"     ; T +000.0:\n'.format(ga_tok=ob, time=by_gau[ob].time, d=d, m=m, s=s)
     abs_ob_str += 'End DIM\n'
     abs_ob_str += 'End Absolutes\n'
 
