@@ -62,16 +62,17 @@ def mean(numbers):
 
 # ======================================================================================================================
 parser = argparse.ArgumentParser(description='convert Autodif observations file to extract.bat/run.bat file')
+g1 = parser.add_mutually_exclusive_group()
 
 parser.add_argument('in_fn', action="store", help='autodif input file', type=str)
 parser.add_argument('-o', dest='out_fn', action="store", help='output to this file (won\'t print to stdout)', type=str)
 
-parser.add_argument('--np', action="store_true", default=False, help='don\'t include PPM readings')
-parser.add_argument('--mro', action="store_true", default=False, help='only include obs that have mark readings')
+parser.add_argument('--np', action="store_true", default=False, help='[NOT YET IMPLEMENTED] don\'t include PPM readings')
+g1.add_argument('--mro', action="store_true", default=False, help='only include obs that have mark readings')
 
 # if first obs doesn't have mark reading, supply them here
 # TODO: make it so requires both :S???
-parser.add_argument('--mud', action="store", type=str, help="force the first missing mark up and down readings. e.g. 'u180d1' or 'u180' (d will be calculated to be 0) or 'd180,0,1.1u0.0' (d is in dms)")
+g1.add_argument('--mud', action="store", type=str, help="force the first missing mark up and down readings. e.g. 'u180d1' or 'u180' (d will be calculated to be 0) or 'd180,0,1.1u0.0' (d is in dms)")
 
 args = parser.parse_args()
 
