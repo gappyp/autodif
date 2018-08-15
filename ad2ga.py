@@ -71,17 +71,31 @@ parser.add_argument('--mro', action="store_true", default=False, help='only incl
 
 # if first obs doesn't have mark reading, supply them here
 # TODO: make it so requires both :S???
-parser.add_argument('--mud', action="store", type=str, help='force the first missing mark up and down readings')
+parser.add_argument('--mud', action="store", type=str, help="force the first missing mark up and down readings. e.g. 'u180d1' or 'u180' (d will be calculated to be 0) or 'd180,0,1.1u0.0' (d is in dms)")
 
 args = parser.parse_args()
 
-# TODO: TESTING... get rid of this eventually
-# TODO: if 2nd angle not specified, do a 180 shift
-args.mud = (180.0, 0.0)
-args.mud = None
-
-#print(args)
-#sys.exit()
+if args.mud != None:
+    map = {'u':'d', 'd':'u'}
+    first = args.mud[0]
+    assert first in map.keys()
+    second = {'u':'d', 'd':'u'}[first]
+    fs = args.mud[1:].split(second)
+    temp = []
+    for ang_str in fs:
+        dms = ang_str.split(',')
+        total = 0
+        for part, mult in zip(dms, [1.0, 1.0/60.0, 1.0/(60.0*60.0)]):
+            total += float(part)*mult
+        temp.append(total)
+    if len(temp) == 1:
+        temp.append((temp[0]+180.0)%360.0)
+    assert len(temp) == 2
+    if first == 'u':
+        args.mud = temp
+    else:
+        args.mud = list(reversed(temp))
+    print(args.mud)
 
 # ----------------------------------------------------------------------------------------------------------------------
 ad_toks =      ['RecTime', 'LaserPU',  'LaserPD',  'Decl1UE', 'Decl2DW', 'Decl3DE', 'Decl4UW', 'LaserPU',  'LaserPD',  'Incl1US', 'Incl2DN', 'Incl3DS', 'Incl4UN']
@@ -140,6 +154,7 @@ for ob in window(obs, len(ad_toks)):
         by_adu = OrdAttrDict(zip(ad_toks_uniq, ob))
         by_gau = OrdAttrDict(zip(ga_toks_uniq, ob))
         wmr_obs.append(AttrDict({'comment':'# source: {}:{}:{}\n'.format(ob[0].fn, ob[0].ln, ob[-1].ln),
+                                 'mr_comment':'# mu: {}:{}\n# md: {}:{}\n'.format(ob[0].fn, by_gau.mu2.ln, ob[0].fn, by_gau.md2.ln),
                                  'dt':by_adu.LaserPU1.dt,
                                  'by_adu':by_adu,
                                  'by_gau':by_gau}))
@@ -192,7 +207,8 @@ else:
         # first has now been set if given at command line
         # merge into wmr obs
         forced_obs = nmr_obs.pop(0)
-        forced_obs.comment += '# mu: forced\n# md: forced\n'
+        forced_obs.mr_comment = '# mu: forced\n# md: forced\n'
+        forced_obs.comment += forced_obs.mr_comment
         wmr_obs.append(forced_obs)
         wmr_obs.sort(key=lambda abs_ob: abs_ob.by_gau.mu1.dt)
 
@@ -203,8 +219,7 @@ else:
         pot_obs.sort(key=lambda abs_ob: abs_ob.by_gau.mu2.dt)
         nmr_ob.by_gau.mu1 = nmr_ob.by_gau.mu2 = pot_obs[-1].by_gau.mu2
         nmr_ob.by_gau.md1 = nmr_ob.by_gau.md2 = pot_obs[-1].by_gau.md2
-        nmr_ob.comment += '# mu: {}:{}\n# md: {}:{}\n'.format(pot_obs[-1].by_gau.mu2.fn, pot_obs[-1].by_gau.mu2.ln,
-                                                              pot_obs[-1].by_gau.md2.fn, pot_obs[-1].by_gau.md2.ln)
+        nmr_ob.comment += pot_obs[-1].mr_comment
 
     abs_obs = wmr_obs+nmr_obs
     abs_obs.sort(key=lambda abs_ob: abs_ob.dt)
