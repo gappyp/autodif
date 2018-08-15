@@ -36,4 +36,5 @@ changes
             * will notify to stderr
             * will be commented in ga .obs output
     * observer name changed to gsb to rmi (royal met. inst.)
+* 0.9.4
     * pull in 1 one minute of PPM data (pier F)
