@@ -96,7 +96,7 @@ if args.mud != None:
         args.mud = temp
     else:
         args.mud = list(reversed(temp))
-    print(args.mud)
+    #print(args.mud)
 
 # ----------------------------------------------------------------------------------------------------------------------
 ad_toks =      ['RecTime', 'LaserPU',  'LaserPD',  'Decl1UE', 'Decl2DW', 'Decl3DE', 'Decl4UW', 'LaserPU',  'LaserPD',  'Incl1US', 'Incl2DN', 'Incl3DS', 'Incl4UN']
