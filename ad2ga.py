@@ -326,7 +326,7 @@ else:
             #print(ll, ul)
             ppms = [tpl for tpl in machview_output if ll <= tpl[0] <= ul]
             ppms.sort(key=lambda tpl:tpl[0])    # sort
-            ppm_lines = ['Begin PPM {} CNB rmi F GSM90_803010 # 81225\n'.format(file_date.strftime('%Y/%m/%d'))]
+            ppm_lines = ['Begin PPM {} CNB rmi F GSM90_803810 # 81225\n'.format(file_date.strftime('%Y/%m/%d'))]
             for dt, val in ppms:
                 ppm_lines.append('{:02d}:{:02d}:{:05.2f} {:.2f} :\n'.format(dt.hour, dt.minute, float(dt.second)+float(dt.microsecond)/(10**6), val))
             ppm_lines.append('End PPM\n')
