@@ -13,6 +13,24 @@ import sys
 from itertools import islice
 from pprint import pprint
 import argparse
+from os.path import join
+import glob
+import subprocess
+import time
+
+if 'win' in sys.platform:
+    root_d = r'\\prod.lan\active\ops'
+    env = {'Path':join(root_d, 'AusGN', 'gm', 'w')}
+    temp_d = os.environ['TEMP']
+elif 'lin' in sys.platform:
+    root_d = r'/nas/active/ops'
+    env = {'PATH':'/opt/gm'}
+    temp_d = '/tmp'
+
+assert os.path.isdir(temp_d)
+# TODO: should assert other dirs?
+
+cnb_d = join(root_d, 'AusGN', 'gm', 'obs', 'cnb')
 
 from orderedattrdict import AttrDict as OrdAttrDict
 #from attrdict import AttrDict
@@ -247,6 +265,94 @@ else:
     abs_obs.sort(key=lambda abs_ob: abs_ob.dt)
 
 # ======================================================================================================================
+r'((?P<ad_tok>{})\s+(?P<date>\d{{4}}-\d{{2}}-\d{{2}})\s+(?P<time>\d{{2}}:\d{{2}}:\d{{2}})\s+(?P<value>\d{{3}}\.\d*)\s*)'.format(p0)
+p3 = r'(\d{2}:\d{2}:\d{1,2}.?\d*)\s+F\s+(\d+.*\d*)'
+# now have all the information we need from .abs file, now get PPM data if needed
+if args.np:
+    # no ppm (i.e. don't want it)
+    for abs_ob in abs_obs:
+        abs_ob.ppm_str = None
+else:
+    # want ppm
+    file_date = abs_obs[0].dt.date()
+    pathname = join(cnb_d, str(file_date.year), 'rawhdata', 'h{}*.cnb'.format(file_date.strftime('%y%j')))
+
+    fns = glob.glob(pathname)
+    # TODO: deal with sequence changes
+    if len(fns) == 0:
+        # no day files
+        for abs_ob in abs_obs:      # TODO: this is duplicated. make a function
+            abs_ob.ppm_str = None
+    else:
+        machview_output = []
+        for fn in fns:
+            # create a temporary file
+            temp_fn = join(temp_d, 'ad2ga.{}.{}.txt'.format(os.getpid(), time.time()))
+            assert not os.path.isfile(temp_fn)
+
+            sh_fmt = r'\"{}\"'
+            sh_fn = sh_fmt.format(fn)
+            sh_temp_fn = sh_fmt.format(temp_fn)
+
+            cmd_date_str = file_date.strftime('%Y/%m/%d')
+            #cmd = r'machview /Select=F /FRom=\"2018/08/08T10:00:00.0\" /To=\"2018/08/08T23:59:59.9\" /Out={} {}'.format(sh_temp_fn, sh_fn)
+            cmd = r'machview /Select=F /FRom=\"{}T00:00:00.0\" /To=\"{}T23:59:59.9\" /Out={} {}'.format(cmd_date_str, cmd_date_str, sh_temp_fn, sh_fn)
+
+            PIPE = subprocess.PIPE
+            proc = subprocess.Popen(cmd, shell=True, env=env, stdout=PIPE, stderr=PIPE)
+            output, err = proc.communicate()
+            errcode = proc.returncode
+            assert errcode == 0
+
+            with open(temp_fn, 'r') as fp:
+                for line in fp:
+                    m_p3 = re.search(p3, line)
+                    if m_p3:
+                        f_time, f_val = m_p3.groups()       # these are strings
+                        f_time_h, f_time_m, f_time_s = f_time.split(':')
+                        f_time_s, f_time_us = f_time_s.split('.')
+                        f_time_us = '{:0<6s}'.format(f_time_us)
+
+                        f_time = datetime.time(int(f_time_h), int(f_time_m), int(f_time_s), int(f_time_us))
+
+                        machview_output.append((datetime.datetime.combine(file_date, f_time), float(f_val)))
+            os.remove(temp_fn)      # CAREFUL HERE!!!
+
+        # go through machview_output and look values within tolerance
+        # set ppm_str (that will be put b4 anything)
+        for abs_ob in abs_obs:
+            ul = abs_ob.dt
+            ll = ul-datetime.timedelta(minutes=1.0)
+            #print(ll, ul)
+            ppms = [tpl for tpl in machview_output if ll <= tpl[0] <= ul]
+            ppms.sort(key=lambda tpl:tpl[0])    # sort
+            ppm_lines = ['Begin PPM {} CNB rmi F GSM90_905926\n'.format(file_date.strftime('%Y/%m/%d'))]
+            for dt, val in ppms:
+                ppm_lines.append('{:02d}:{:02d}:{:05.2f} {:.2f} :\n'.format(dt.hour, dt.minute, float(dt.second)+float(dt.microsecond)/(10**6), val))
+            ppm_lines.append('End PPM\n')
+            abs_ob.ppm_str = (''.join(ppm_lines))
+
+
+
+
+
+# example PPM str
+"""
+Begin PPM 2018/07/31 CNB aml Aw GSM90_905926 # 21867
+03:49:00.0 58010.93 : # a
+03:49:10.0 58010.89 : # a
+03:49:20.1 58010.92 : # a
+03:49:30.0 58010.81 : # a
+03:49:40.1 58011.00 : # a
+03:49:50.1 58011.03 : # a
+03:50:00.0 58011.18 : # a
+03:50:10.1 58011.24 : # a
+End PPM
+"""
+
+#sys.exit()
+
+# ======================================================================================================================
 # TODO: think creates a new string each time '+='... confirm this and if the case maybe '\n'.join(append-to-a-list)
 # for each abs obs create a string
 def get_abs_ob_str(abs_ob):
@@ -255,6 +361,7 @@ def get_abs_ob_str(abs_ob):
 
     abs_ob_str  = str(abs_ob.comment)
     abs_ob_str += 'Begin Absolutes {date:} {time:} CNB #VAR#\n'.format(date=abs_ob.dt.strftime('%Y/%m/%d'), time=abs_ob.dt.strftime('%H:%M:%S'))
+    abs_ob_str += abs_ob.ppm_str
     abs_ob_str += 'Begin DIM {date:} CNB rmi N Cw AUTODIF_007E AUTODIF_007\n'.format(date=by_gau.mu1.dt.strftime('%Y/%m/%d'))
     abs_ob_str += 'mu'+' '*10+'{}\n'.format(dd2dms_shim(float(by_gau.mu1.value)))
     abs_ob_str += 'md'+' '*10+'{}\n'.format(dd2dms_shim(float(by_gau.md1.value)))

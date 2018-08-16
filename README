@@ -42,3 +42,5 @@ changes
                 * needs more testing (tests under definition of function)
     * 0.9.4
         * pull in 1 one minute of PPM data (pier F)
+        * implemented by creating temp file from machview (rhe version to use is /opt/gm/machview)
+            * need to be careful with options (uses windows style '/', but space needed for linux)
