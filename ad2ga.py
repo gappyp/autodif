@@ -271,7 +271,7 @@ p3 = r'(\d{2}:\d{2}:\d{1,2}.?\d*)\s+F\s+(\d+.*\d*)'
 if args.np:
     # no ppm (i.e. don't want it)
     for abs_ob in abs_obs:
-        abs_ob.ppm_str = None
+        abs_ob.ppm_str = ''
 else:
     # want ppm
     file_date = abs_obs[0].dt.date()
@@ -282,7 +282,7 @@ else:
     if len(fns) == 0:
         # no day files
         for abs_ob in abs_obs:      # TODO: this is duplicated. make a function
-            abs_ob.ppm_str = None
+            abs_ob.ppm_str = ''
     else:
         machview_output = []
         for fn in fns:
@@ -326,7 +326,7 @@ else:
             #print(ll, ul)
             ppms = [tpl for tpl in machview_output if ll <= tpl[0] <= ul]
             ppms.sort(key=lambda tpl:tpl[0])    # sort
-            ppm_lines = ['Begin PPM {} CNB rmi F GSM90_905926\n'.format(file_date.strftime('%Y/%m/%d'))]
+            ppm_lines = ['Begin PPM {} CNB rmi F GSM90_803010 # 81225\n'.format(file_date.strftime('%Y/%m/%d'))]
             for dt, val in ppms:
                 ppm_lines.append('{:02d}:{:02d}:{:05.2f} {:.2f} :\n'.format(dt.hour, dt.minute, float(dt.second)+float(dt.microsecond)/(10**6), val))
             ppm_lines.append('End PPM\n')
@@ -338,7 +338,7 @@ else:
 
 # example PPM str
 """
-Begin PPM 2018/07/31 CNB aml Aw GSM90_905926 # 21867
+Begin PPM 2018/07/31 CNB aml Aw GSM90_803010 # 81225
 03:49:00.0 58010.93 : # a
 03:49:10.0 58010.89 : # a
 03:49:20.1 58010.92 : # a
