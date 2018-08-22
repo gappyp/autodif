@@ -374,7 +374,7 @@ def get_abs_ob_str(abs_ob):
     abs_ob_str += 'md'+' '*10+'{}\n'.format(dd2dms_shim(float(by_gau.md2.value)))
 
     # calculate hz1 and hz2. should be in the half of north?     # TODO: needs confirmation
-    hz_calc_angs = [float(by_adu[ob].value) for ob in ['Decl1UE', 'Decl4UW']]
+    hz_calc_angs = [float(by_adu[ob].value) for ob in ['Decl1UE', 'Decl2DW', 'Decl3DE', 'Decl4UW']]
     hz1 = mean([x%180.0 for x in hz_calc_angs])
     #hz1 += 180.0
     if hz_calc_angs[0] <= 180:
