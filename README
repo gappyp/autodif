@@ -44,3 +44,6 @@ changes
         * pull in 1 one minute of PPM data (pier F)
         * implemented by creating temp file from machview (rhe version to use is /opt/gm/machview)
             * need to be careful with options (uses windows style '/', but space needed for linux)
+        * 0.9.4.1
+            * fixed issue with horizontal calculation (before was only using 2 declinations instead of 4)
+            * no ppm command line option help text changed from

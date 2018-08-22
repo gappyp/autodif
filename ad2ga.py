@@ -106,7 +106,7 @@ g1 = parser.add_mutually_exclusive_group()
 parser.add_argument('in_fn', action="store", help='autodif input file', type=str)
 parser.add_argument('-o', dest='out_fn', action="store", help='output to this file (won\'t print to stdout)', type=str)
 
-parser.add_argument('--np', action="store_true", default=False, help='[NOT YET IMPLEMENTED] don\'t include PPM readings')
+parser.add_argument('--np', action="store_true", default=False, help='don\'t include PPM readings')
 g1.add_argument('--mro', action="store_true", default=False, help='only include obs that have mark readings')
 
 # if first obs doesn't have mark reading, supply them here
@@ -374,7 +374,7 @@ def get_abs_ob_str(abs_ob):
     abs_ob_str += 'md'+' '*10+'{}\n'.format(dd2dms_shim(float(by_gau.md2.value)))
 
     # calculate hz1 and hz2. should be in the half of north?     # TODO: needs confirmation
-    hz_calc_angs = [float(by_adu[ob].value) for ob in ['Decl1UE', 'Decl4UW']]
+    hz_calc_angs = [float(by_adu[ob].value) for ob in ['Decl1UE', 'Decl2DW', 'Decl3DE', 'Decl4UW']]
     hz1 = mean([x%180.0 for x in hz_calc_angs])
     #hz1 += 180.0
     if hz_calc_angs[0] <= 180:
