@@ -106,9 +106,10 @@ g1 = parser.add_mutually_exclusive_group()
 parser.add_argument('in_fn', action="store", help='autodif input file', type=str)
 parser.add_argument('-o', dest='out_fn', action="store", help='output to this file (won\'t print to stdout)', type=str)
 
-parser.add_argument('--np', action="store_true", default=False, help='don\'t include PPM readings')
-g1.add_argument('--mro', action="store_true", default=False, help='only include obs that have mark readings')
+parser.add_argument('--nppm', action="store_true", default=False, help='don\'t include PPM readings')
+parser.add_argument('--hzdd', action="store_true", default=False, help='comment above Hz readings in decimal degrees')
 
+g1.add_argument('--mro', action="store_true", default=False, help='only include obs that have mark readings')
 # if first obs doesn't have mark reading, supply them here
 # TODO: make it so requires both :S???
 g1.add_argument('--mud', action="store", type=str, help="force the first missing mark up and down readings. e.g. 'u180d1' or 'u180' (d will be calculated to be 0) or 'd180,0,1.1u0.0' (d is in dms)")
@@ -181,7 +182,7 @@ with open(args.in_fn, 'r') as fp:
         ob.ga_tok = tok_map[ob.ad_tok]
         ob.dt = datetime.datetime.strptime(ob.date+'T'+ob.time, "%Y-%m-%dT%H:%M:%S")
         ob.fn = args.in_fn      # TODO: so frustrating not having pathlib... this will need to use cwd when relative path
-        ob.ln = ln
+        ob.ln = ln+1
         obs.append(ob)
 
 # TODO: this won't be true now that include rectime token. need to split the list and assert order
@@ -194,7 +195,7 @@ for ob in window(obs, len(ad_toks)):
         by_adu = OrdAttrDict(zip(ad_toks_uniq, ob))
         by_gau = OrdAttrDict(zip(ga_toks_uniq, ob))
         wmr_obs.append(AttrDict({'comment':'# source: {}:{}:{}\n'.format(ob[0].fn, ob[0].ln, ob[-1].ln),
-                                 'mr_comment':'# mu: {}:{}\n# md: {}:{}\n'.format(ob[0].fn, by_gau.mu2.ln, ob[0].fn, by_gau.md2.ln),
+                                 'mr_comment':'# MISSING mu (using {}:{})\n# MISSING md (using {}:{})\n'.format(ob[0].fn, by_gau.mu2.ln, ob[0].fn, by_gau.md2.ln),      # this doesn't get printed for wmr
                                  'dt':by_adu.LaserPU1.dt,
                                  'by_adu':by_adu,
                                  'by_gau':by_gau}))
@@ -247,7 +248,7 @@ else:
         # first has now been set if given at command line
         # merge into wmr obs
         forced_obs = nmr_obs.pop(0)
-        forced_obs.mr_comment = '# mu: forced\n# md: forced\n'
+        forced_obs.mr_comment = '# MISSING mu (using forced)\n# MISSING md (using forced)\n'
         forced_obs.comment += forced_obs.mr_comment
         wmr_obs.append(forced_obs)
         wmr_obs.sort(key=lambda abs_ob: abs_ob.by_gau.mu1.dt)
@@ -268,7 +269,7 @@ else:
 r'((?P<ad_tok>{})\s+(?P<date>\d{{4}}-\d{{2}}-\d{{2}})\s+(?P<time>\d{{2}}:\d{{2}}:\d{{2}})\s+(?P<value>\d{{3}}\.\d*)\s*)'.format(p0)
 p3 = r'(\d{2}:\d{2}:\d{1,2}.?\d*)\s+F\s+(\d+.*\d*)'
 # now have all the information we need from .abs file, now get PPM data if needed
-if args.np:
+if args.nppm:
     # no ppm (i.e. don't want it)
     for abs_ob in abs_obs:
         abs_ob.ppm_str = ''
@@ -385,11 +386,15 @@ def get_abs_ob_str(abs_ob):
     hz2 = (hz1+180.0)%360.0
 
     abs_ob_str += 'hz          {}\n'.format(dd2dms_shim(hz1))
+    if args.hzdd:
+        abs_ob_str += '{}{:08.4f}\n'.format('#'*12, hz1)
     # inclination obs
     for ob in ['eu', 'ed']:
         dms_str = dd2dms_shim(float(by_gau[ob].value))
         abs_ob_str += '{ga_tok:} {time:} {dms_str:}     ; T +000.0:\n'.format(ga_tok=ob, time=by_gau[ob].time, dms_str=dms_str)
     abs_ob_str += 'hz          {}\n'.format(dd2dms_shim(hz2))
+    if args.hzdd:
+        abs_ob_str += '{}{:08.4f}\n'.format('#'*12, hz2)
     for ob in ['wd', 'wu']:
         dms_str = dd2dms_shim(float(by_gau[ob].value))
         abs_ob_str += '{ga_tok:} {time:} {dms_str:}     ; T +000.0:\n'.format(ga_tok=ob, time=by_gau[ob].time, dms_str=dms_str)

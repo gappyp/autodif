@@ -46,4 +46,8 @@ changes
             * need to be careful with options (uses windows style '/', but space needed for linux)
         * 0.9.4.1
             * fixed issue with horizontal calculation (before was only using 2 declinations instead of 4)
-            * no ppm command line option help text changed from
+        * 0.9.4.1
+            * --np to --nppm (bit more clearer)
+            * --hzdd to show inclination horizontals in decimal degrees (comment)
+            * line numbers 1-indexed
+            * missing mark reading comment changed so easier regex
