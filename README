@@ -3,21 +3,21 @@ ad2ga.py: script to convert autodif absolute observations to ga .obs file
 * if you don't know what version to use, use the one with the latest version number
     * don't use ad2ga.py as that is what I use to experiment with
 * i think everytime any of the script are saved from windows, it resets the unix permisions on the file
-    *
+    * so it is best to pass the script to the python interpreter (since that is part of the system and if that's not executable, there's a problem)
 
 usage
 -----
+See latest version help, e.g.:
 geomagr@rhe-geomag-prod01.prod.lan:>$GMProj/u/autodif/ad2ga-0.9.1.py -h
-usage: ad2ga-0.9.1.py [-h] [-o OUT_FN] in_fn
 
-Convert Autodif observations file to extract.bat/run.bat file
+environment
+-----------
+* Python 2.7.5 because that is what is available on rhe-geomag-prod01
+* environment.yml can be used with the Anaconda Python distribution to create the environment on other systems and Windows
 
-positional arguments:
-  in_fn       Autodif input file
-
-optional arguments:
-  -h, --help  show this help message and exit
-  -o OUT_FN   Output to this file
+testing
+-------
+* some files in the root directory (.abs), but no unit tests or test scripts yet implemented
 
 changes
 -------
@@ -46,8 +46,12 @@ changes
             * need to be careful with options (uses windows style '/', but space needed for linux)
         * 0.9.4.1
             * fixed issue with horizontal calculation (before was only using 2 declinations instead of 4)
-        * 0.9.4.1
+        * 0.9.4.2
             * --np to --nppm (bit more clearer)
             * --hzdd to show inclination horizontals in decimal degrees (comment)
             * line numbers 1-indexed
-            * missing mark reading comment changed so easier regex
+            * missing mark reading comment changed to:
+                # MISSING mu (using forced)
+                # MISSING md (using forced)
+                # MISSING mu (using 20180808_missing_first_marks.abs:1158)
+                # MISSING md (using 20180808_missing_first_marks.abs:1159)

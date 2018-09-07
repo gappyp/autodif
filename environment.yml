@@ -1,0 +1,15 @@
+name: autodif
+channels:
+  - obspy
+  - defaults
+dependencies:
+  - certifi=2018.8.13=py27_0
+  - pip=10.0.1=py27_0
+  - python=2.7.5=2
+  - setuptools=40.0.0=py27_0
+  - vc=9=h7299396_1
+  - vs2008_runtime=9.00.30729.1=hfaea7d5_1
+  - wheel=0.31.1=py27_0
+  - wincertstore=0.2=py27hf04cefb_0
+prefix: G:\anaconda3\envs\autodif
+
